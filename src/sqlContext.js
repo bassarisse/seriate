@@ -3,6 +3,7 @@ var when = require( "when" );
 var machina;
 var sql;
 var Monologue;
+var globalConnection;
 
 function errorHandler( err ) {
 	this.err = err;
@@ -130,13 +131,47 @@ module.exports = function( mssql, MonologueCtor, mach ) {
 
 			connecting: {
 				_onEnter: function() {
-					this.connection = new sql.Connection( this.connectionCfg, function( err ) {
-						if ( err ) {
-							this.handle( "error", err );
+
+					if (this.connectionCfg.useGlobalConnection) {
+
+						if (!globalConnection) {
+
+							globalConnection = new sql.Connection( this.connectionCfg, function( err ) {
+								if ( err ) {
+									this.handle( "error", err );
+								} else {
+									this.handle( "success" );
+								}
+							}.bind( this ) );
+							
+							this.connection = globalConnection;
+
 						} else {
-							this.handle( "success" );
+
+							this.connection = globalConnection;
+
+							if (globalConnection.connected) {
+								this.handle( "success" );
+							} else {
+								globalConnection.on("connect", function() {
+									this.handle( "success" );
+								}.bind( this ) );
+							}
+
 						}
-					}.bind( this ) );
+
+					} else {
+
+						this.connection = new sql.Connection( this.connectionCfg, function( err ) {
+							if ( err ) {
+								this.handle( "error", err );
+							} else {
+								this.handle( "success" );
+							}
+						}.bind( this ) );
+
+					}
+					
 				},
 				success: function() {
 					this.nextState();
@@ -149,7 +184,7 @@ module.exports = function( mssql, MonologueCtor, mach ) {
 
 			done: {
 				_onEnter: function() {
-					if ( this.connection.close ) {
+					if ( this.connection.close && !this.connectionCfg.useGlobalConnection ) {
 						this.connection.close();
 					}
 					this.emit( "end", this.results );
@@ -162,7 +197,7 @@ module.exports = function( mssql, MonologueCtor, mach ) {
 
 			error: {
 				_onEnter: function() {
-					if ( this.connection.close ) {
+					if ( this.connection.close && !this.connectionCfg.useGlobalConnection ) {
 						this.connection.close();
 					}
 					this.err.message = "Seriate SqlContext Error. Failed on step '" + this.priorState + "'." + this.err.message;

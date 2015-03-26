@@ -44,7 +44,7 @@ module.exports = function( sql, SqlContext ) {
 							commit: function() {
 								return when.promise( function( resolve, reject ) {
 									self.transaction.commit( function( err ) {
-										if ( self.connection.close ) {
+										if ( self.connection.close && !this.connectionCfg.useGlobalConnection ) {
 											self.connection.close();
 										}
 										if ( err ) {
@@ -58,7 +58,7 @@ module.exports = function( sql, SqlContext ) {
 							rollback: function() {
 								return when.promise( function( resolve, reject ) {
 									self.transaction.rollback( function( err ) {
-										if ( self.connection.close ) {
+										if ( self.connection.close && !this.connectionCfg.useGlobalConnection ) {
 											self.connection.close();
 										}
 										if ( err ) {
