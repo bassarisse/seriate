@@ -256,3 +256,9 @@ module.exports = function( mssql, MonologueCtor, mach ) {
 
 	return SqlContext;
 };
+
+process.on("exit", function() {
+	if (globalConnection && globalConnection.close) {
+		globalConnection.close();
+	}
+});
